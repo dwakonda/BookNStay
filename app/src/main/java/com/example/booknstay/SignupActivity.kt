@@ -35,20 +35,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.booknstay.ui.theme.BookNStayTheme
 
-class LoginPageActivity : ComponentActivity() {
+class SignupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             BookNStayTheme {
-                SimpleLoginScreen(
-                    onLogin = {
+                SimpleSignupScreen(
+                    onSignupSuccess = {
+                        // After signup, go to your main/home screen
                         startActivity(Intent(this, MainActivity::class.java))
                         finish()
                     },
-                    onSignup = {
-                        // Navigate to signup screen (create SignupActivity later)
-                        startActivity(Intent(this, SignupActivity::class.java))
+                    onLoginClick = {
+                        // Go back to login screen
+                        startActivity(Intent(this, LoginPageActivity::class.java))
+                        finish()
                     }
                 )
             }
@@ -57,15 +59,18 @@ class LoginPageActivity : ComponentActivity() {
 }
 
 @Composable
-fun SimpleLoginScreen(
-    onLogin: () -> Unit,
-    onSignup: () -> Unit
+fun SimpleSignupScreen(
+    onSignupSuccess: () -> Unit,
+    onLoginClick: () -> Unit
 ) {
     val ctx = LocalContext.current
 
+    var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     val gradient = Brush.verticalGradient(
         listOf(
@@ -86,41 +91,55 @@ fun SimpleLoginScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Title
+            // Title & caption
             Text(
                 text = "BookNStay",
                 color = Color.White,
-                fontSize = 36.sp,
+                fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
-                text = "Find your perfect stay, anytime.",
+                text = "Create your account to get started",
                 color = Color.White.copy(alpha = 0.9f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(26.dp))
 
-            // Login card
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        color = Color.White.copy(alpha = 0.92f),
+                        color = Color.White.copy(alpha = 0.95f),
                         shape = RoundedCornerShape(24.dp)
                     )
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-
                 Text(
-                    text = "Welcome back",
+                    text = "Sign up",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                 )
                 Spacer(Modifier.height(12.dp))
 
+                // Full Name
+                OutlinedTextField(
+                    value = fullName,
+                    onValueChange = { fullName = it },
+                    label = { Text("Full name") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // Email
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
@@ -136,11 +155,12 @@ fun SimpleLoginScreen(
 
                 Spacer(Modifier.height(12.dp))
 
+                // Password
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
-                    placeholder = { Text("Enter your password") },
+                    placeholder = { Text("Choose a password") },
                     singleLine = true,
                     visualTransformation = if (passwordVisible) VisualTransformation.None
                     else PasswordVisualTransformation(),
@@ -159,6 +179,37 @@ fun SimpleLoginScreen(
                     },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // Confirm Password
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Confirm password") },
+                    placeholder = { Text("Re-enter password") },
+                    singleLine = true,
+                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None
+                    else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        val label = if (confirmPasswordVisible) "Hide" else "Show"
+                        Text(
+                            text = label,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { confirmPasswordVisible = !confirmPasswordVisible }
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -168,10 +219,19 @@ fun SimpleLoginScreen(
 
                 Button(
                     onClick = {
-                        if (email.isBlank() || password.isBlank()) {
-                            Toast.makeText(ctx, "Please enter email & password", Toast.LENGTH_SHORT).show()
-                        } else {
-                            onLogin()
+                        when {
+                            fullName.isBlank() || email.isBlank() ||
+                                    password.isBlank() || confirmPassword.isBlank() -> {
+                                Toast.makeText(ctx, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                            }
+                            password != confirmPassword -> {
+                                Toast.makeText(ctx, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                            }
+                            else -> {
+                                // Here you would normally call Firebase/Backend
+                                Toast.makeText(ctx, "Account created!", Toast.LENGTH_SHORT).show()
+                                onSignupSuccess()
+                            }
                         }
                     },
                     modifier = Modifier
@@ -179,23 +239,23 @@ fun SimpleLoginScreen(
                         .height(50.dp),
                     shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text("Sign in", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Create account", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
 
                 Spacer(Modifier.height(14.dp))
 
-                // Signup option text
                 val annotated = buildAnnotatedString {
-                    append("Don't have an account? ")
+                    append("Already have an account? ")
                     withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)) {
-                        append("Sign up")
+                        append("Login")
                     }
                 }
+
                 Text(
                     text = annotated,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSignup() },
+                        .clickable { onLoginClick() },
                     textAlign = TextAlign.Center,
                     fontSize = 14.sp
                 )

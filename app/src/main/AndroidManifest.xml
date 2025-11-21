@@ -27,6 +27,10 @@
             android:exported="true"
             android:label="BookNStay"
             android:theme="@style/Theme.BookNStay" />
+        <activity
+            android:name=".SignupActivity"
+            android:exported="true"/>
+
     </application>
 
 </manifest>
