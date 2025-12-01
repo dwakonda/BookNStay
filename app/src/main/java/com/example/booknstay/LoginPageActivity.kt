@@ -34,31 +34,48 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.booknstay.ui.theme.BookNStayTheme
+import com.google.firebase.auth.FirebaseAuth
 
 class LoginPageActivity : ComponentActivity() {
+
+    private lateinit var auth: FirebaseAuth
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        auth = FirebaseAuth.getInstance()   // Initialize Firebase Auth
+
         enableEdgeToEdge()
         setContent {
             BookNStayTheme {
                 SimpleLoginScreen(
-                    onLogin = {
-                        startActivity(Intent(this, MainActivity::class.java))
-                        finish()
+                    onLogin = { email, password ->
+                        loginUser(email, password)
                     },
                     onSignup = {
-                        // Navigate to signup screen (create SignupActivity later)
                         startActivity(Intent(this, SignupActivity::class.java))
                     }
                 )
             }
         }
     }
+
+    private fun loginUser(email: String, password: String) {
+        auth.signInWithEmailAndPassword(email.trim(), password.trim())
+            .addOnSuccessListener {
+                Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, HomePageActivity::class.java))
+                finish()
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Login failed: ${it.message}", Toast.LENGTH_LONG).show()
+            }
+    }
 }
 
 @Composable
 fun SimpleLoginScreen(
-    onLogin: () -> Unit,
+    onLogin: (String, String) -> Unit,
     onSignup: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -82,6 +99,7 @@ fun SimpleLoginScreen(
             .padding(horizontal = 20.dp),
         contentAlignment = Alignment.Center
     ) {
+
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -103,7 +121,7 @@ fun SimpleLoginScreen(
 
             Spacer(Modifier.height(28.dp))
 
-            // Login card
+            // Card Area
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -169,9 +187,9 @@ fun SimpleLoginScreen(
                 Button(
                     onClick = {
                         if (email.isBlank() || password.isBlank()) {
-                            Toast.makeText(ctx, "Please enter email & password", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, "Please enter all fields", Toast.LENGTH_SHORT).show()
                         } else {
-                            onLogin()
+                            onLogin(email, password)
                         }
                     },
                     modifier = Modifier
@@ -184,7 +202,6 @@ fun SimpleLoginScreen(
 
                 Spacer(Modifier.height(14.dp))
 
-                // Signup option text
                 val annotated = buildAnnotatedString {
                     append("Don't have an account? ")
                     withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)) {

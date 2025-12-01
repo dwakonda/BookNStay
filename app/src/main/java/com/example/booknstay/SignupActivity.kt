@@ -34,21 +34,26 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.booknstay.ui.theme.BookNStayTheme
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.userProfileChangeRequest
 
 class SignupActivity : ComponentActivity() {
+
+    private lateinit var auth: FirebaseAuth
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        auth = FirebaseAuth.getInstance()
+
         enableEdgeToEdge()
         setContent {
             BookNStayTheme {
                 SimpleSignupScreen(
-                    onSignupSuccess = {
-                        // After signup, go to your main/home screen
-                        startActivity(Intent(this, MainActivity::class.java))
-                        finish()
+                    onSignup = { fullName, email, password ->
+                        createAccount(fullName, email, password)
                     },
                     onLoginClick = {
-                        // Go back to login screen
                         startActivity(Intent(this, LoginPageActivity::class.java))
                         finish()
                     }
@@ -56,11 +61,29 @@ class SignupActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun createAccount(fullName: String, email: String, password: String) {
+        auth.createUserWithEmailAndPassword(email.trim(), password.trim())
+            .addOnSuccessListener { result ->
+                // Optionally set display name
+                val profileUpdates = userProfileChangeRequest {
+                    displayName = fullName
+                }
+                result.user?.updateProfile(profileUpdates)
+
+                Toast.makeText(this, "Account created successfully!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, MainActivity::class.java))
+                finish()
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Signup failed: ${it.message}", Toast.LENGTH_LONG).show()
+            }
+    }
 }
 
 @Composable
 fun SimpleSignupScreen(
-    onSignupSuccess: () -> Unit,
+    onSignup: (String, String, String) -> Unit,
     onLoginClick: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -228,9 +251,7 @@ fun SimpleSignupScreen(
                                 Toast.makeText(ctx, "Passwords do not match", Toast.LENGTH_SHORT).show()
                             }
                             else -> {
-                                // Here you would normally call Firebase/Backend
-                                Toast.makeText(ctx, "Account created!", Toast.LENGTH_SHORT).show()
-                                onSignupSuccess()
+                                onSignup(fullName, email, password)
                             }
                         }
                     },
@@ -246,7 +267,12 @@ fun SimpleSignupScreen(
 
                 val annotated = buildAnnotatedString {
                     append("Already have an account? ")
-                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)) {
+                    withStyle(
+                        SpanStyle(
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    ) {
                         append("Login")
                     }
                 }

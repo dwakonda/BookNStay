@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "634117913994",
+    "project_id": "booknstay-af461",
+    "storage_bucket": "booknstay-af461.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:634117913994:android:c5245d99351b2a68329c73",
+        "android_client_info": {
+          "package_name": "com.example.booknstay"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrs-SLEd9BEXzddnIra9dQ2txsduVglXM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
