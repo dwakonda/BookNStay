@@ -154,14 +154,17 @@ class HomePageActivity : ComponentActivity() {
         }
     }
 
+    // --------- Firestore + sample data helpers ---------
+
     private fun listenToPopularHotels() {
         db.collection("hotels")
             // remove orderBy if you don't have "rating" field
             .orderBy("rating", Query.Direction.DESCENDING)
             .limit(10)
             .addSnapshotListener { snapshot, error ->
+                // If Firestore fails -> use local sample data
                 if (error != null) {
-                    isLoadingState.value = false
+                    useSampleHotels()
                     return@addSnapshotListener
                 }
 
@@ -180,9 +183,45 @@ class HomePageActivity : ComponentActivity() {
                     )
                 } ?: emptyList()
 
-                hotelsState.value = hotels
-                isLoadingState.value = false
+                if (hotels.isEmpty()) {
+                    // No data in Firestore yet -> show sample hotels
+                    useSampleHotels()
+                } else {
+                    hotelsState.value = hotels
+                    isLoadingState.value = false
+                }
             }
+    }
+
+    private fun sampleHotels(): List<HotelItem> {
+        return listOf(
+            HotelItem(
+                id = "local1",
+                name = "City Center Hotel",
+                location = "0.5 km from centre",
+                price = "£120 / night",
+                city = "Manchester"
+            ),
+            HotelItem(
+                id = "local2",
+                name = "Sea View Resort",
+                location = "Near the beach",
+                price = "£95 / night",
+                city = "Brighton"
+            ),
+            HotelItem(
+                id = "local3",
+                name = "Business Inn",
+                location = "Close to station",
+                price = "£110 / night",
+                city = "London"
+            )
+        )
+    }
+
+    private fun useSampleHotels() {
+        hotelsState.value = sampleHotels()
+        isLoadingState.value = false
     }
 
     private fun listenToBookings() {
