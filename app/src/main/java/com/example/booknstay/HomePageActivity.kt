@@ -27,34 +27,103 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.booknstay.ui.theme.BookNStayTheme
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 
 class HomePageActivity : ComponentActivity() {
 
     private lateinit var auth: FirebaseAuth
+    private lateinit var db: FirebaseFirestore
+
+    // State that Compose will observe
+    private val hotelsState = mutableStateOf<List<HotelItem>>(emptyList())
+    private val isLoadingState = mutableStateOf(true)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         auth = FirebaseAuth.getInstance()
+        db = FirebaseFirestore.getInstance()
+
+        // Start listening for popular hotels from Firestore
+        listenToPopularHotels()
 
         enableEdgeToEdge()
         setContent {
             BookNStayTheme {
+                val hotels by hotelsState
+                val isLoading by isLoadingState
+
                 HomePageScreen(
+                    hotels = hotels,
+                    isLoading = isLoading,
                     onLogout = {
                         auth.signOut()
                         startActivity(Intent(this, LoginPageActivity::class.java))
                         finish()
+                    },
+                    onSearch = { destination, checkIn, checkOut, guests ->
+                        // For now just show a message.
+                        // Later you can navigate to a SearchResultsActivity.
+                        Toast.makeText(
+                            this,
+                            "Searching $destination ($checkIn - $checkOut, $guests)",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onHotelClick = { hotel ->
+                        // For now just show which hotel was tapped.
+                        // Later you can open a HotelDetailsActivity.
+                        Toast.makeText(
+                            this,
+                            "Opening ${hotel.name}",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 )
             }
         }
     }
+
+    private fun listenToPopularHotels() {
+        // Example: listen to "hotels" collection, ordered by rating (if you have it)
+        db.collection("hotels")
+            .orderBy("rating", Query.Direction.DESCENDING) // remove this line if you don't have "rating"
+            .limit(10)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    isLoadingState.value = false
+                    return@addSnapshotListener
+                }
+
+                val hotels = snapshot?.documents?.mapNotNull { doc ->
+                    val name = doc.getString("name") ?: return@mapNotNull null
+                    val location = doc.getString("location") ?: ""
+                    val price = doc.getString("price") ?: ""
+                    val city = doc.getString("city") ?: ""
+
+                    HotelItem(
+                        id = doc.id,
+                        name = name,
+                        location = location,
+                        price = price,
+                        city = city
+                    )
+                } ?: emptyList()
+
+                hotelsState.value = hotels
+                isLoadingState.value = false
+            }
+    }
 }
 
 @Composable
 fun HomePageScreen(
-    onLogout: () -> Unit
+    hotels: List<HotelItem>,
+    isLoading: Boolean,
+    onLogout: () -> Unit,
+    onSearch: (String, String, String, String) -> Unit,
+    onHotelClick: (HotelItem) -> Unit
 ) {
     val ctx = LocalContext.current
 
@@ -185,12 +254,7 @@ fun HomePageScreen(
                                 Toast.LENGTH_SHORT
                             ).show()
                         } else {
-                            Toast.makeText(
-                                ctx,
-                                "Searching stays in $destination...",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            // later: navigate to SearchResultsActivity with these values
+                            onSearch(destination, checkIn, checkOut, guests)
                         }
                     },
                     modifier = Modifier
@@ -213,36 +277,49 @@ fun HomePageScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            // Simple hotel list
-            val sampleHotels = remember {
-                listOf(
-                    HotelItem("City Center Hotel", "London • 0.5 km from centre", "£120 / night"),
-                    HotelItem("Sea View Resort", "Brighton • Near the beach", "£95 / night"),
-                    HotelItem("Business Inn", "Manchester • Close to station", "£110 / night")
+            if (isLoading) {
+                // Loading indicator while Firestore data is coming
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                }
+            } else if (hotels.isEmpty()) {
+                // No hotels found
+                Text(
+                    text = "No popular stays available.",
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
-            }
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(sampleHotels) { hotel ->
-                    HotelCard(hotel = hotel, onClick = {
-                        // later: open HotelDetailsActivity
-                        Toast
-                            .makeText(ctx, "Opening ${hotel.name}", Toast.LENGTH_SHORT)
-                            .show()
-                    })
-                    Spacer(Modifier.height(10.dp))
+            } else {
+                // Show Firestore hotels
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(hotels) { hotel ->
+                        HotelCard(
+                            hotel = hotel,
+                            onClick = { onHotelClick(hotel) }
+                        )
+                        Spacer(Modifier.height(10.dp))
+                    }
                 }
             }
         }
     }
 }
 
+// --------- DATA + CARD UI ---------
+
 data class HotelItem(
-    val name: String,
-    val location: String,
-    val price: String
+    val id: String = "",
+    val name: String = "",
+    val location: String = "",
+    val price: String = "",
+    val city: String = ""
 )
 
 @Composable
@@ -271,7 +348,10 @@ fun HotelCard(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = hotel.location,
+                text = if (hotel.city.isNotBlank())
+                    "${hotel.city} • ${hotel.location}"
+                else
+                    hotel.location,
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )
